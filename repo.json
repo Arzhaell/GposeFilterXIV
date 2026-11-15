@@ -1,0 +1,31 @@
+[
+  {
+    "Author": "Arzhael",
+    "Name": "GposeFilterXIV",
+    "InternalName": "GposeFilterXIV",
+    "AssemblyVersion": "1.0.0.0",
+    "Description": "Pick a filter from the game's GPose list and an intensity (0-100 %, like the GPose slider): GposeFilterXIV keeps it on everywhere, outside of GPose.\nThe game draws the filter itself, exactly as in GPose: no shader, no hook. Cutscenes and GPose filters take over while they need it, then yours comes back. Turning it off or unloading the plugin gives back the area's own filter.\nAvailable in English and French. Command: /gposefilter",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/Arzhaell/GposeFilterXIV",
+    "Tags": [
+      "gpose",
+      "filter",
+      "color",
+      "colour",
+      "visual",
+      "screenshot"
+    ],
+    "DalamudApiLevel": 15,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "IconUrl": "https://raw.githubusercontent.com/Arzhaell/GposeFilterXIV/main/images/icon.png",
+    "Punchline": "Keeps one of the game's GPose color filters on outside of GPose.",
+    "AcceptsFeedback": true,
+    "DownloadLinkInstall": "https://github.com/Arzhaell/GposeFilterXIV/releases/download/v1.0.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Arzhaell/GposeFilterXIV/releases/download/v1.0.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Arzhaell/GposeFilterXIV/releases/download/v1.0.0/latest.zip",
+    "LastUpdate": 1794745393
+  }
+]
