@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="GposeFilterXIV/GposeFilterXIV.csproj" />
+  <Project Path="GposeFilterXIV.Tests/GposeFilterXIV.Tests.csproj" />
+</Solution>
