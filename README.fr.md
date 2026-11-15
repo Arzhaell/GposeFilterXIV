@@ -40,8 +40,10 @@ Ajoute ce dépôt personnalisé dans `/xlsettings`, onglet **Experimental**, pui
 `/xlplugins` :
 
 ```
-https://raw.githubusercontent.com/Arzhaell/GposeFilterXIV/main/repo.json
+https://raw.githubusercontent.com/Arzhaell/ArzhaelXIVPlugins/main/repo.json
 ```
+
+Cette adresse donne accès à [tous mes plugins](https://github.com/Arzhaell/ArzhaelXIVPlugins/blob/main/README.fr.md). Si tu avais déjà ajouté l'adresse propre à ce plugin (`https://raw.githubusercontent.com/Arzhaell/GposeFilterXIV/main/repo.json`), elle marche toujours ; avec les deux, chaque plugin apparaît deux fois ([changer d'adresse](https://github.com/Arzhaell/ArzhaelXIVPlugins/blob/main/README.fr.md#installation)).
 
 ## Compilation
 SDK .NET 10 et XIVLauncher (Dalamud) installés. Clone avec le sous-module KamiToolKit :
