@@ -1,5 +1,8 @@
 using System;
 using System.Linq;
+using Dalamud.Game;
+using Dalamud.Game.Command;
+using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -8,12 +11,19 @@ namespace GposeFilterXIV;
 
 public sealed class Plugin : IDalamudPlugin
 {
+    private const string CommandName = "/gposefilter";
+
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
+    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+
+    private readonly WindowSystem windowSystem = new("GposeFilterXIV");
+    private readonly MainWindow mainWindow;
 
     // Null si le code du jeu ou la feuille ColorFilter ne sont pas ceux qu'on connaît : on n'écrit alors rien.
     private readonly GameFilterSlot? slot;
@@ -21,9 +31,13 @@ public sealed class Plugin : IDalamudPlugin
     private SlotState? lastState;
     private byte lastOwner;
 
+    // La pause a été annoncée dans le chat (une fois par chargement du plugin, une fois connecté).
+    private bool pauseAnnounced;
+
     public Plugin()
     {
-        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Configuration = LoadConfiguration();
+        Loc.Update(Configuration.Language, GameIsFrench);
         Catalog = LoadCatalog(out var sheetError);
 
         var addresses = GameFilterSlot.Locate(SigScanner, out var codeError);
@@ -40,7 +54,16 @@ public sealed class Plugin : IDalamudPlugin
                 + $"argument EnvManager+0x{addresses.ReserveArgumentOffset:X}, owner byte EnvManager+0x{addresses.OwnerOffset:X}.");
         }
 
+        mainWindow = new MainWindow(this);
+        windowSystem.AddWindow(mainWindow);
+
+        // Le filtre se règle aussi en GPose : Dalamud y cache sinon les fenêtres des plugins.
+        PluginInterface.UiBuilder.DisableGposeUiHide = true;
+        PluginInterface.UiBuilder.Draw += windowSystem.Draw;
+        PluginInterface.UiBuilder.OpenMainUi += mainWindow.Toggle;
+        PluginInterface.UiBuilder.OpenConfigUi += mainWindow.Toggle;
         Framework.Update += OnFrameworkUpdate;
+        RegisterCommand();
     }
 
     public Configuration Configuration { get; }
@@ -57,13 +80,43 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Qui tenait l'emplacement à la dernière image.</summary>
     internal byte Owner { get; private set; }
 
+    private static bool GameIsFrench => ClientState.ClientLanguage == ClientLanguage.French;
+
     public void Dispose()
     {
         Framework.Update -= OnFrameworkUpdate;
+        CommandManager.RemoveHandler(CommandName);
+        PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
+        PluginInterface.UiBuilder.OpenMainUi -= mainWindow.Toggle;
+        PluginInterface.UiBuilder.OpenConfigUi -= mainWindow.Toggle;
+        windowSystem.RemoveAllWindows();
 
         // Rendre l'emplacement sur le fil du jeu : le filtre de zone revient.
         if (slot != null)
             Framework.RunOnFrameworkThread(() => FilterSlot.Release(slot.Current())).Wait();
+    }
+
+    internal void SetLanguage(PluginLanguage language)
+    {
+        Configuration.Language = language;
+        Configuration.Save();
+        Loc.Update(language, GameIsFrench);
+        CommandManager.RemoveHandler(CommandName);
+        RegisterCommand();
+    }
+
+    // Un fichier de configuration illisible ne doit pas empêcher le plugin de se charger : on repart des réglages par défaut.
+    private static Configuration LoadConfiguration()
+    {
+        try
+        {
+            return PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Could not read the configuration, falling back to default settings.");
+            return new Configuration();
+        }
     }
 
     private static FilterCatalog LoadCatalog(out string? error)
@@ -90,7 +143,10 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework framework)
     {
         if (slot == null)
+        {
+            AnnouncePause();
             return;
+        }
 
         var wanted = FilterValues.Wanted(
             Configuration.Enabled, ClientState.IsLoggedIn, Configuration.FilterId, Configuration.Intensity, Catalog);
@@ -105,4 +161,22 @@ public sealed class Plugin : IDalamudPlugin
             lastOwner = Owner;
         }
     }
+
+    // En pause, le dire une fois dans le chat, si on attendait un filtre (sinon la fenêtre suffit).
+    private void AnnouncePause()
+    {
+        if (pauseAnnounced || !Configuration.Enabled || !ClientState.IsLoggedIn)
+            return;
+        pauseAnnounced = true;
+        ChatGui.PrintError(FilterStatus.PausedText, "GposeFilterXIV");
+    }
+
+    private void OnCommand(string command, string arguments) => mainWindow.Toggle();
+
+    private static string CommandHelp => Loc.T(
+        "/gposefilter: choose the GPose filter to keep on outside of GPose.",
+        "/gposefilter : choisir le filtre de GPose à garder hors GPose.");
+
+    private void RegisterCommand() =>
+        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand) { HelpMessage = CommandHelp });
 }

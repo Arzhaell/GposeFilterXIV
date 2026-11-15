@@ -55,6 +55,9 @@ internal static class FilterSlot
     /// </summary>
     public const byte OurOwner = 0x20;
 
+    /// <summary>Le propriétaire des scènes d'événement : GPose, cinématiques, IdleCam.</summary>
+    public const byte SceneOwner = 0x40;
+
     /// <summary>
     /// La règle : on ne prend l'emplacement que s'il est libre, on n'écrit que s'il est à nous, on ne rend que le nôtre.
     /// Un propriétaire étranger, plus grand ou plus petit que nous, n'est jamais touché.

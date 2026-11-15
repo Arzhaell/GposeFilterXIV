@@ -17,5 +17,7 @@ public class Configuration : IPluginConfiguration
     /// <summary>L'intensité, de 0 à 100 % comme le curseur de GPose.</summary>
     public int Intensity { get; set; } = 100;
 
+    public PluginLanguage Language { get; set; } = PluginLanguage.Auto;
+
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }

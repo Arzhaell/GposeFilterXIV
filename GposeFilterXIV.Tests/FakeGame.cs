@@ -8,7 +8,7 @@ namespace GposeFilterXIV.Tests;
 /// </summary>
 internal sealed class FakeGame : IFilterSlot
 {
-    public const byte GposeOwner = 0x40;
+    public const byte GposeOwner = FilterSlot.SceneOwner;
 
     /// <summary>L'octet propriétaire (EnvManager + 0x45B).</summary>
     public byte OwnerByte { get; set; }
