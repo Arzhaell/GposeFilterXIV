@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          submodules: true # KamiToolKit
 
       - uses: actions/setup-dotnet@v5
         with:

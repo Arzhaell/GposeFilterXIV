@@ -6,10 +6,17 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Sans ça, la version des fichiers porte le hash du commit d'avant (la compilation précède le commit « Version X.Y.Z »). -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Pas la documentation XML de KamiToolKit dans le paquet (450 Ko inutiles en jeu) ; les .pdb restent. -->
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="GposeFilterXIV.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fenêtre au style du jeu (éléments d'interface natifs), MIT, sous-module figé sur le commit b4b7cab. -->
+    <ProjectReference Include="..\KamiToolKit\KamiToolKit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

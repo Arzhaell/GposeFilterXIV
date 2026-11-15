@@ -5,7 +5,7 @@
 A Dalamud plugin for FINAL FANTASY XIV that keeps one of the game's GPose color filters on outside of GPose.
 
 ## Using it
-Type `/gposefilter` (or open the plugin from `/xlplugins`):
+Type `/gposefilter` (or open the plugin from `/xlplugins`): a window made of the game's own interface elements opens.
 
 - **Enabled**: keep the filter on.
 - **Filter**: the game's GPose list, in the same order and in the game's language. “Standard” means no filter, like in
@@ -19,7 +19,11 @@ window tells what the plugin is doing.
 ## How it works
 The game draws the filter itself, exactly as in GPose: the plugin writes the values of the chosen filter (from the
 game's `ColorFilter` sheet) where GPose writes them, and reserves that place with the game's own function. No shader,
-no hook, no color computation of its own.
+no hook, no color computation of its own for the filter.
+
+The window is built with [KamiToolKit](https://github.com/MidoriKami/KamiToolKit) from the game's interface elements.
+So that it closes along with the game's windows (Escape), KamiToolKit hooks the game's window-closing callback; that is
+the only hook, and it has nothing to do with the filter.
 
 - **GPose and cutscenes come first**: when they set a filter of their own, the plugin steps aside, then yours comes
   back. In GPose with “Standard”, yours stays.
@@ -37,7 +41,11 @@ https://raw.githubusercontent.com/Arzhaell/GposeFilterXIV/main/repo.json
 ```
 
 ## Building
-.NET 10 SDK and XIVLauncher (Dalamud) installed.
+.NET 10 SDK and XIVLauncher (Dalamud) installed. Clone with the KamiToolKit submodule:
+
+```bash
+git clone --recurse-submodules https://github.com/Arzhaell/GposeFilterXIV.git
+```
 
 ```bash
 dotnet build -c Release
@@ -73,6 +81,8 @@ git push origin v1.0.0
   `ColorFilterOverride`).
 - [Lumina](https://github.com/NotAdam/Lumina) (WTFPL): reading the game data (`ColorFilter` sheet).
 - [EXDSchema](https://github.com/xivdev/EXDSchema): names of the `ColorFilter` sheet columns.
+- [KamiToolKit](https://github.com/MidoriKami/KamiToolKit) (MIT, git submodule): the window, made of the game's own
+  interface elements.
 - [Dear ImGui](https://github.com/ocornut/imgui) (MIT): the user interface library used by Dalamud.
 - [xUnit](https://xunit.net/) for the tests.
 

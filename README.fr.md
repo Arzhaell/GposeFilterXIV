@@ -5,7 +5,8 @@
 Un plugin Dalamud pour FINAL FANTASY XIV qui garde un des filtres de couleur de la GPose hors de la GPose.
 
 ## Utilisation
-Tape `/gposefilter` (ou ouvre le plugin depuis `/xlplugins`) :
+Tape `/gposefilter` (ou ouvre le plugin depuis `/xlplugins`) : une fenêtre faite des éléments d'interface du jeu
+s'ouvre.
 
 - **Activé** : garder le filtre.
 - **Filtre** : la liste de la GPose, dans le même ordre et dans la langue du jeu. « Standard » veut dire pas de filtre,
@@ -19,7 +20,11 @@ fenêtre dit ce que fait le plugin.
 ## Comment ça marche
 C'est le jeu qui dessine le filtre, exactement comme dans la GPose : le plugin écrit les valeurs du filtre choisi (tirées
 de la feuille `ColorFilter` du jeu) là où la GPose les écrit, et réserve cette place avec la fonction du jeu. Pas de
-shader, pas de hook, aucun calcul de couleur maison.
+shader, pas de hook, aucun calcul de couleur maison pour le filtre.
+
+La fenêtre est construite avec [KamiToolKit](https://github.com/MidoriKami/KamiToolKit) à partir des éléments
+d'interface du jeu. Pour qu'elle se ferme avec les fenêtres du jeu (Échap), KamiToolKit pose un hook sur la fonction du
+jeu qui ferme les fenêtres : c'est le seul, et il n'a rien à voir avec le filtre.
 
 - **La GPose et les cinématiques passent devant** : quand elles mettent leur propre filtre, le plugin s'efface, puis le
   tien revient. Dans la GPose avec « Standard », le tien reste.
@@ -39,7 +44,11 @@ https://raw.githubusercontent.com/Arzhaell/GposeFilterXIV/main/repo.json
 ```
 
 ## Compilation
-SDK .NET 10 et XIVLauncher (Dalamud) installés.
+SDK .NET 10 et XIVLauncher (Dalamud) installés. Clone avec le sous-module KamiToolKit :
+
+```bash
+git clone --recurse-submodules https://github.com/Arzhaell/GposeFilterXIV.git
+```
 
 ```bash
 dotnet build -c Release
@@ -76,6 +85,8 @@ git push origin v1.0.0
   `ColorFilterOverride`).
 - [Lumina](https://github.com/NotAdam/Lumina) (WTFPL) : lecture des données du jeu (feuille `ColorFilter`).
 - [EXDSchema](https://github.com/xivdev/EXDSchema) : noms des colonnes de la feuille `ColorFilter`.
+- [KamiToolKit](https://github.com/MidoriKami/KamiToolKit) (MIT, sous-module git) : la fenêtre, faite des éléments
+  d'interface du jeu.
 - [Dear ImGui](https://github.com/ocornut/imgui) (MIT) : la bibliothèque d'interface utilisée par Dalamud.
 - [xUnit](https://xunit.net/) pour les tests.
 

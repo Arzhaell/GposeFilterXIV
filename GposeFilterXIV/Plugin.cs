@@ -1,15 +1,17 @@
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Game;
 using Dalamud.Game.Command;
-using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
 
 namespace GposeFilterXIV;
 
-public sealed class Plugin : IDalamudPlugin
+public sealed class Plugin : IAsyncDalamudPlugin
 {
     private const string CommandName = "/gposefilter";
 
@@ -22,11 +24,10 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
-    private readonly WindowSystem windowSystem = new("GposeFilterXIV");
-    private readonly MainWindow mainWindow;
-
     // Null si le code du jeu ou la feuille ColorFilter ne sont pas ceux qu'on connaît : on n'écrit alors rien.
-    private readonly GameFilterSlot? slot;
+    private GameFilterSlot? slot;
+
+    private FilterWindow? window;
 
     private SlotState? lastState;
     private byte lastOwner;
@@ -34,7 +35,23 @@ public sealed class Plugin : IDalamudPlugin
     // La pause a été annoncée dans le chat (une fois par chargement du plugin, une fois connecté).
     private bool pauseAnnounced;
 
-    public Plugin()
+    public Configuration Configuration { get; private set; } = new();
+
+    /// <summary>Les filtres de GPose, dans son ordre et dans la langue du jeu.</summary>
+    internal FilterCatalog Catalog { get; private set; } = new([]);
+
+    /// <summary>Pourquoi le plugin ne fait rien (jeu mis à jour sans lui…), ou null s'il marche.</summary>
+    internal string? PauseReason { get; private set; }
+
+    /// <summary>Ce qui s'est passé à la dernière image (pour la fenêtre).</summary>
+    internal SlotState State { get; private set; } = SlotState.Unavailable;
+
+    /// <summary>Qui tenait l'emplacement à la dernière image.</summary>
+    internal byte Owner { get; private set; }
+
+    private static bool GameIsFrench => ClientState.ClientLanguage == ClientLanguage.French;
+
+    public async Task LoadAsync(CancellationToken cancellationToken)
     {
         Configuration = LoadConfiguration();
         Loc.Update(Configuration.Language, GameIsFrench);
@@ -54,46 +71,40 @@ public sealed class Plugin : IDalamudPlugin
                 + $"argument EnvManager+0x{addresses.ReserveArgumentOffset:X}, owner byte EnvManager+0x{addresses.OwnerOffset:X}.");
         }
 
-        mainWindow = new MainWindow(this);
-        windowSystem.AddWindow(mainWindow);
+        await KamiToolKitLibrary.InitializeAsync(PluginInterface, "GposeFilterXIV");
+        window = new FilterWindow
+        {
+            InternalName = "GposeFilterXIV",
+            Title = FilterWindow.WindowTitle,
+            Size = FilterWindow.DefaultSize,
+            Plugin = this,
+        };
 
-        // Le filtre se règle aussi en GPose : Dalamud y cache sinon les fenêtres des plugins.
-        PluginInterface.UiBuilder.DisableGposeUiHide = true;
-        PluginInterface.UiBuilder.Draw += windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenMainUi += mainWindow.Toggle;
-        PluginInterface.UiBuilder.OpenConfigUi += mainWindow.Toggle;
+        PluginInterface.UiBuilder.OpenMainUi += ToggleWindow;
+        PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
         Framework.Update += OnFrameworkUpdate;
         RegisterCommand();
     }
 
-    public Configuration Configuration { get; }
-
-    /// <summary>Les filtres de GPose, dans son ordre et dans la langue du jeu.</summary>
-    internal FilterCatalog Catalog { get; }
-
-    /// <summary>Pourquoi le plugin ne fait rien (jeu mis à jour sans lui…), ou null s'il marche.</summary>
-    internal string? PauseReason { get; }
-
-    /// <summary>Ce qui s'est passé à la dernière image (pour la fenêtre).</summary>
-    internal SlotState State { get; private set; } = SlotState.Unavailable;
-
-    /// <summary>Qui tenait l'emplacement à la dernière image.</summary>
-    internal byte Owner { get; private set; }
-
-    private static bool GameIsFrench => ClientState.ClientLanguage == ClientLanguage.French;
-
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Framework.Update -= OnFrameworkUpdate;
         CommandManager.RemoveHandler(CommandName);
-        PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenMainUi -= mainWindow.Toggle;
-        PluginInterface.UiBuilder.OpenConfigUi -= mainWindow.Toggle;
-        windowSystem.RemoveAllWindows();
+        PluginInterface.UiBuilder.OpenMainUi -= ToggleWindow;
+        PluginInterface.UiBuilder.OpenConfigUi -= ToggleWindow;
 
         // Rendre l'emplacement sur le fil du jeu : le filtre de zone revient.
         if (slot != null)
-            Framework.RunOnFrameworkThread(() => FilterSlot.Release(slot.Current())).Wait();
+            await Framework.RunOnFrameworkThread(() => FilterSlot.Release(slot.Current()));
+
+        // La suite de l'await reprend sur le fil du jeu, or KamiToolKit attend la fermeture de ses fenêtres hors de
+        // ce fil (sinon le jeu se bloque) : on passe sur le pool de threads.
+        await Task.Run(async () =>
+        {
+            if (window != null)
+                await window.DisposeAsync();
+            await KamiToolKitLibrary.DisposeAsync();
+        });
     }
 
     internal void SetLanguage(PluginLanguage language)
@@ -103,6 +114,9 @@ public sealed class Plugin : IDalamudPlugin
         Loc.Update(language, GameIsFrench);
         CommandManager.RemoveHandler(CommandName);
         RegisterCommand();
+
+        // À l'image suivante : on est peut-être dans le clic de la liste des langues, qu'on va reconstruire.
+        Framework.RunOnTick(() => window?.RefreshTexts());
     }
 
     // Un fichier de configuration illisible ne doit pas empêcher le plugin de se charger : on repart des réglages par défaut.
@@ -140,6 +154,9 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    // La fenêtre du jeu s'ouvre et se ferme sur le fil du jeu (la commande y est déjà, le bouton de /xlplugins non).
+    private void ToggleWindow() => Framework.RunOnFrameworkThread(() => window?.Toggle());
+
     private void OnFrameworkUpdate(IFramework framework)
     {
         if (slot == null)
@@ -171,7 +188,7 @@ public sealed class Plugin : IDalamudPlugin
         ChatGui.PrintError(FilterStatus.PausedText, "GposeFilterXIV");
     }
 
-    private void OnCommand(string command, string arguments) => mainWindow.Toggle();
+    private void OnCommand(string command, string arguments) => ToggleWindow();
 
     private static string CommandHelp => Loc.T(
         "/gposefilter: choose the GPose filter to keep on outside of GPose.",
